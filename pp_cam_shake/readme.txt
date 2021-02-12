@@ -5,3 +5,5 @@ How to use:
 (plans to automatically offet curves back to 1 based on first keyframe in the future)
 
 Enjoy!
+
+Credit to the curves in the database belongs to the creator of in_RealCamShake - Luca Mignardi, which also inspired this tool
