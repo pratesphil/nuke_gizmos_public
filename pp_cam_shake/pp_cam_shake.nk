@@ -1,0 +1,287 @@
+set cut_paste_input [stack 0]
+version 11.3 v4
+push $cut_paste_input
+Group {
+name pp_cam_shake
+onCreate "node = nuke.thisNode()\n\npresets = \['_Custom axis_']\ntry:\n    files = os.listdir(node\['dir'].getValue())\n    for f in files:\n        presets.append(f.split('.')\[0])\nexcept:\n    pass\nnode\['preset'].setValues(sorted(presets))\n\nnode\['f_frame'].setValue(nuke.root()\['first_frame'].getValue())\nnode\['l_frame'].setValue(nuke.root()\['last_frame'].getValue())"
+knobChanged "node = nuke.thisNode()\nknob = nuke.thisKnob()\n\nif knob.name() == 'dir':\n    presets = \['_Custom axis_']\n    try:\n        files = os.listdir(node\['dir'].getValue())\n        for f in files:\n            presets.append(f.split('.')\[0])\n    except:\n        pass\n    node\['preset'].setValues(sorted(presets))\n    node\['preset'].setValue('_Custom_axis_')\nelif knob.name() == 'loop':\n    with node:\n        axis = nuke.toNode('_axis_')\n        if knob.getValue() == True:\n            exp = 'curve(((t-f_frame)%(l_frame-f_frame))+f_frame)'\n        else:\n            exp = 'curve'\n        axis\['translate'].setExpression(exp)    \n        axis\['rotate'].setExpression(exp)    \nelif knob.name() == 'f_name':\n    color = '<font color=#C12727><b>ERROR: '\n    if knob.value() == '':\n        node\['export'].setEnabled(False)\n        node\['confirm'].setVisible(False)\n        error = 'Invalid filename'\n    elif knob.value() in node\['preset'].values():\n        node\['export'].setEnabled(False)\n        error = 'Filename already exists, rename or confirm overwrite'\n        node\['confirm'].setVisible(True)\n    else:\n        node\['export'].setEnabled(True)\n        node\['confirm'].setVisible(False)\n        color = '<font color=#27C13E><b>Ready to export'\n        error = ''\n    node\['name_error'].setValue(color+error)\nelif knob.name() == 'preset':\n    if knob.value() != '_Custom axis_':\n        try:\n            with node:\n                node.setInput(1, None)\n                nuke.delete(nuke.toNode('axis'))        \n        except:\n            pass  \n        node\['export_options'].setVisible(False)\n        f_name = knob.value() + '.txt'\n        with open(os.path.join(node\['dir'].getValue(),f_name), 'r') as file:\n            txt = file.read()\n        split_txt = txt.split('\\nrotate ')\n        rot = split_txt\[-1]\n        trans = split_txt\[0].split('translate ')\[1]\n        with node:\n            axis = nuke.toNode('_axis_')\n            axis\['translate'].fromScript(trans)       \n            axis\['rotate'].fromScript(rot)\n            keys = axis\['translate'].animation(0).keys()\n            axis\['f_frame'].setValue(keys\[0].x)\n            axis\['l_frame'].setValue(keys\[-1].x)\n    else:\n        node\['export_options'].setVisible(True)\n        with node:\n            if not nuke.toNode('axis'):\n                nuke.nodes.Input (name = 'axis')\n                axis = nuke.toNode('_axis_')\n                for k in \['translate','rotate']:                \n                    axis\[k].clearAnimated()    \n                    axis\[k].setValue(0) "
+tile_color 0xa57aaa00
+label "\[value preset]"
+selected true
+xpos -314
+ypos -59
+cached true
+addUserKnob {20 User l Controls}
+addUserKnob {2 dir l database}
+addUserKnob {4 preset M {"_Custom axis_"}}
+addUserKnob {6 loop l "loop animation" -STARTLINE}
+loop true
+addUserKnob {3 start l "start at"}
+start 1001
+addUserKnob {26 spacer_1 l " "}
+addUserKnob {41 motionblur T CornerPin2D2.motionblur}
+addUserKnob {41 shutter T CornerPin2D2.shutter}
+addUserKnob {41 shutteroffset l "shutter offset" T CornerPin2D2.shutteroffset}
+addUserKnob {41 shuttercustomoffset l "" -STARTLINE T CornerPin2D2.shuttercustomoffset}
+addUserKnob {26 ""}
+addUserKnob {26 adjust_label l " " T "<font color=#ddd><b>Adjustments"}
+addUserKnob {7 focal l "focal length" R 0 100}
+focal 50
+addUserKnob {7 h_ap l "horiz aperture" R 0 100}
+h_ap 24.576
+addUserKnob {7 dist_amnt l distance R 0 1000}
+dist_amnt 100
+addUserKnob {26 spacer l " "}
+addUserKnob {7 scale_cons l "constant scale" R 0 2}
+scale_cons 1
+addUserKnob {7 glob_mult l "global multiply" R 0 2}
+glob_mult 1
+addUserKnob {26 spacer_4 l " "}
+addUserKnob {14 trans_amnt l "translate multiply" R 0 100}
+trans_amnt 1
+addUserKnob {7 rot_amnt l "rotate multiply" R 0 4}
+rot_amnt 1
+addUserKnob {7 scale_amnt l "scale multiply" R 0 4}
+scale_amnt 1
+addUserKnob {7 freq_amnt l "frequency multiply" R 0 4}
+freq_amnt 1
+addUserKnob {20 create n 1}
+addUserKnob {3 f_frame l "frame range"}
+f_frame 1
+addUserKnob {3 l_frame l "" -STARTLINE}
+l_frame 100
+addUserKnob {22 get_range l reload -STARTLINE T "node = nuke.thisNode()\n\nnode\['f_frame'].setValue(nuke.root()\['first_frame'].getValue())\nnode\['l_frame'].setValue(nuke.root()\['last_frame'].getValue())"}
+addUserKnob {22 c_tracker l tracker T "node = nuke.thisNode()\nff = int(node\['f_frame'].getValue())\nlf = int(node\['l_frame'].getValue())\nnode\['code'].execute()\n\nwith node:\n    bl = nuke.toNode('bl')\['output']\n    br = nuke.toNode('br')\['output']\n    ur = nuke.toNode('tr')\['output']\n    ul = nuke.toNode('tl')\['output']\n    \nwith nuke.root():\n    tracker = make_tracker(ff,lf,bl,br,ur,ul)\n    tracker\['label'].setValue(node\['preset'].value())\n    tracker.setXYpos(node.xpos()+100, node.ypos())\n    tracker\['reference_frame'].setValue(node\['start'].getValue())" +STARTLINE}
+addUserKnob {22 c_axis l axis -STARTLINE T "node = nuke.thisNode()\nff = int(node\['f_frame'].getValue())\nlf = int(node\['l_frame'].getValue())\nnode\['code'].execute()\n\nwith node:\n    trans = nuke.toNode('_offset_')\['translate']\n    rot = nuke.toNode('_offset_')\['rotate']\n    \nwith nuke.root():\n    tracker = make_axis(ff,lf,trans,rot)\n    tracker\['label'].setValue(node\['preset'].value())\n    tracker.setXYpos(node.xpos()+100, node.ypos())"}
+addUserKnob {20 endGroup_1 l endGroup n -1}
+addUserKnob {20 data l Data}
+addUserKnob {41 translate T _offset_.translate}
+addUserKnob {41 rotate T _offset_.rotate}
+addUserKnob {26 spacer_3 l " "}
+addUserKnob {20 export_options l "export custom axis" -STARTLINE n 1}
+addUserKnob {26 info l INFO: T "For best results, please ensure that your animation starts at frame 0, \nas well as the rotate and translate values are at neutral.\n\[0, 0, 0] at frame 0!\n\nSteps:\n1: Set a unique file name\n2: Connect camera or axis with keyframed animation starting at frame 0\n3: Hit export and it will be availible as a preset"}
+addUserKnob {26 spacer_2 l " "}
+addUserKnob {1 f_name l filename}
+addUserKnob {22 export -STARTLINE +DISABLED T "import os\n\nnode = nuke.thisNode()\n\ndef anim_to_txt():\n    axis = node.input(1)\n    txt = ''\n    for k in \['translate', 'rotate']:\n        vals = \[]\n        txt += k + ' '\n        for i in range(3):\n            vals.append(axis\[k].animation(i).toScript())\n        txt += vals\[0] + ' ' + vals\[1] + ' ' + vals\[2]\n        txt += '\\n'\n    return txt\n    \nf_name = node\['f_name'].getValue() \npath = os.path.join(node\['dir'].getValue(),f_name + '.txt')\ntxt = anim_to_script()\n\nwith open(path, 'w') as file:\n    file.write(txt)\n\nnuke.message('Export of ' + f_name + ' complete')\n\npresets = \['_Custom axis_']\ntry:\n    files = os.listdir(node\['dir'].getValue())\n    for f in files:\n        presets.append(f.split('.')\[0])\nexcept:\n    pass\nnode\['preset'].setValues(sorted(presets))\n\nnode\['f_name'].setValue('')\nnode\['preset'].setValue(f_name)"}
+addUserKnob {22 confirm l "enable overwrite" -STARTLINE +HIDDEN T "nuke.thisNode()\['export'].setEnabled(True)"}
+addUserKnob {26 name_error l " " T "<font color=#C12727><b>ERROR: Invalid filename"}
+addUserKnob {20 endGroup n -1}
+addUserKnob {22 code +INVISIBLE T "def make_tracker(ff, lf, bl, br, ur, ul):\n    \n    c = nuke.nodes.Tracker4()\n    c.showControlPanel()\n\n    # Add four tracks.\n    for i in range(4):\n        c\[\"add_track\"].execute()\n    c.hideControlPanel()\n    \n    tracker = c\[\"tracks\"]\n    \n    # Number of columns.\n    numColumns = 31\n    \n    # Set Translate, Rotate, Scale on all tracks.\n    for i in range(4):\n        for j in \[6,7,8]:\n            tracker.setValue(1, numColumns*i+j)\n    \n    # Setup progress bar.\n    task = nuke.ProgressTask('Adding keyframes...')\n    progressCalc = 100.0/float(lf-ff)\n    counter = 0\n    \n    # Add tracking data.\n    for i in range(ff, lf+1):\n    \n        index = 0\n        for j in \[bl, br, ur, ul]:\n            tracker.setValueAt(j.valueAt(i)\[0], i, numColumns*index + 2)\n            tracker.setValueAt(j.valueAt(i)\[1], i, numColumns*index + 3)\n            index +=1\n    \n        if task.isCancelled(): \n            print \"Cancelled by user.\"\n            break\n    \n        # Update progress bar.\n        task.setProgress(int(counter*progressCalc))\n        task.setMessage(\"Frame \{0\}\".format(i))\n        counter +=1\n    \n    del task\n    return c\n    \ndef make_axis(ff, lf, trans, rot):\n    \n    c = nuke.nodes.Axis2()\n\n    # Setup progress bar.\n    task = nuke.ProgressTask('Adding keyframes...')\n    progressCalc = 100.0/float(lf-ff)\n    counter = 0\n    \n    # Add tracking data.\n    for i in range(ff, lf+1):\n        \n        for j in \[trans, rot]:\n            knob_name = j.name()\n            c\[knob_name].setAnimated()\n            for index in range(3):\n                c\[knob_name].setValueAt(j.valueAt(i)\[index],i,index)\n    \n        if task.isCancelled(): \n            print \"Cancelled by user.\"\n            break\n    \n        # Update progress bar.\n        task.setProgress(int(counter*progressCalc))\n        task.setMessage(\"Frame \{0\}\".format(i))\n        counter +=1\n    \n    del task\n    return c" +STARTLINE}
+}
+Axis2 {
+inputs 0
+translate {{((_freq_.translate(t-parent.start))*(trans_amnt.w*glob_mult))} {((_freq_.translate(t-parent.start))*(trans_amnt.h*glob_mult))} {((_freq_.translate(t-parent.start))*(scale_amnt*glob_mult))}}
+rotate {{((_freq_.rotate(t-parent.start))*(trans_amnt.h*glob_mult))} {((_freq_.rotate(t-parent.start))*(trans_amnt.w*glob_mult))} {((_freq_.rotate(t-parent.start))*(rot_amnt*glob_mult))}}
+name _offset_
+tile_color 0x666666ff
+xpos 417
+ypos -261
+addUserKnob {20 User}
+addUserKnob {3 offset}
+offset {{t-parent.start}}
+}
+Camera2 {
+translate {0 0 1}
+focal {{parent.focal}}
+haperture {{parent.h_ap}}
+name _cam_
+tile_color 0x666666ff
+selected true
+xpos 482
+ypos -261
+}
+Dot {
+name Dot2
+xpos 679
+ypos -158
+hide_input true
+}
+set N10322530 [stack 0]
+Input {
+inputs 0
+name Input
+tile_color 0x333333ff
+xpos 521
+ypos -230
+}
+Reformat {
+type scale
+pbb true
+name Reformat1
+tile_color 0x444444ff
+xpos 480
+ypos -203
+}
+set N103053b0 [stack 0]
+Dot {
+name Dot1
+xpos 625
+ypos -159
+hide_input true
+}
+set N10326e80 [stack 0]
+Reconcile3D {
+inputs 2
+point {10 -10 {dist_amnt}}
+calc_output true
+name br
+xpos 709
+ypos 73
+}
+push $N10322530
+push $N10326e80
+Reconcile3D {
+inputs 2
+point {-10 -10 {dist_amnt}}
+calc_output true
+name bl
+xpos 523
+ypos 68
+}
+push $N103053b0
+CornerPin2D {
+to1 {{_tracker_.tracks.1.track_x} {_tracker_.tracks.1.track_y}}
+to2 {{_tracker_.tracks.2.track_x} {_tracker_.tracks.2.track_y}}
+to3 {{_tracker_.tracks.3.track_x} {_tracker_.tracks.3.track_y}}
+to4 {{_tracker_.tracks.4.track_x} {_tracker_.tracks.4.track_y}}
+"extra matrix" 1
+transform_matrix {
+    {{parent.scale_cons} 0 0 {(width/-2)*(transform_matrix.0-1)}}
+    {0 {transform_matrix.0} 0 {(height/-2)*(transform_matrix.5-1)}}
+    {0 0 1 0}
+    {0 0 0 1}
+  }
+invert false
+from1 {{_tracker_.tracks.1.track_x(1.0)} {_tracker_.tracks.1.track_y(1.0)}}
+from2 {{_tracker_.tracks.2.track_x(1.0)} {_tracker_.tracks.2.track_y(1.0)}}
+from3 {{_tracker_.tracks.3.track_x(1.0)} {_tracker_.tracks.3.track_y(1.0)}}
+from4 {{_tracker_.tracks.4.track_x(1.0)} {_tracker_.tracks.4.track_y(1.0)}}
+name CornerPin2D2
+tile_color 0x444444ff
+xpos 480
+ypos -171
+addUserKnob {20 "Reference Frame"}
+addUserKnob {22 set_frame l "Set to Current Frame" -STARTLINE T "myCornerPin = nuke.thisNode()\nto1 = myCornerPin\['to1'].getValue()\nto2 = myCornerPin\['to2'].getValue()\nto3 = myCornerPin\['to3'].getValue()\nto4 = myCornerPin\['to4'].getValue()\n\nfrom1 = myCornerPin.knob('from1')\nfrom2 = myCornerPin.knob('from2')\nfrom3 = myCornerPin.knob('from3')\nfrom4 = myCornerPin.knob('from4')\n\nfrom1.clearAnimated()\nfrom2.clearAnimated()\nfrom3.clearAnimated()\nfrom4.clearAnimated()\n\nnuke.thisNode().knob('from1').setValue(to1)\nnuke.thisNode().knob('from2').setValue(to2)\nnuke.thisNode().knob('from3').setValue(to3)\nnuke.thisNode().knob('from4').setValue(to4)\n\nnuke.thisNode().knob('ref_frame').setValue(nuke.frame())\n\nnuke.thisNode().knob('label').setValue('Reference Frame: \[value ref_frame]')"}
+addUserKnob {3 ref_frame l "Reference Frame" +HIDDEN}
+}
+Output {
+name Output1
+tile_color 0x444444ff
+xpos 392
+ypos -171
+}
+push $N10322530
+push $N10326e80
+Reconcile3D {
+inputs 2
+point {-10 10 {dist_amnt}}
+calc_output true
+name tl
+xpos 490
+ypos -139
+}
+Tracker4 {
+inputs 0
+tracks { { 1 31 4 } 
+{ { 5 1 20 enable e 1 } 
+{ 3 1 75 name name 1 } 
+{ 2 1 58 track_x track_x 1 } 
+{ 2 1 58 track_y track_y 1 } 
+{ 2 1 63 offset_x offset_x 1 } 
+{ 2 1 63 offset_y offset_y 1 } 
+{ 4 1 27 T T 1 } 
+{ 4 1 27 R R 1 } 
+{ 4 1 27 S S 1 } 
+{ 2 0 45 error error 1 } 
+{ 1 1 0 error_min error_min 1 } 
+{ 1 1 0 error_max error_max 1 } 
+{ 1 1 0 pattern_x pattern_x 1 } 
+{ 1 1 0 pattern_y pattern_y 1 } 
+{ 1 1 0 pattern_r pattern_r 1 } 
+{ 1 1 0 pattern_t pattern_t 1 } 
+{ 1 1 0 search_x search_x 1 } 
+{ 1 1 0 search_y search_y 1 } 
+{ 1 1 0 search_r search_r 1 } 
+{ 1 1 0 search_t search_t 1 } 
+{ 2 1 0 key_track key_track 1 } 
+{ 2 1 0 key_search_x key_search_x 1 } 
+{ 2 1 0 key_search_y key_search_y 1 } 
+{ 2 1 0 key_search_r key_search_r 1 } 
+{ 2 1 0 key_search_t key_search_t 1 } 
+{ 2 1 0 key_track_x key_track_x 1 } 
+{ 2 1 0 key_track_y key_track_y 1 } 
+{ 2 1 0 key_track_r key_track_r 1 } 
+{ 2 1 0 key_track_t key_track_t 1 } 
+{ 2 1 0 key_centre_offset_x key_centre_offset_x 1 } 
+{ 2 1 0 key_centre_offset_y key_centre_offset_y 1 } 
+} 
+{ 
+ { {curve K x38 1} "track 1" {tl.output.x} {tl.output.y} {curve} {curve} 1 1 1 {curve} 1 0 -30 -30 30 30 -21 -21 21 21 {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve}  } 
+ { {curve K x38 1} "track 2" {tr.output.x} {tr.output.y} {curve} {curve} 1 1 1 {curve} 1 0 -30 -30 30 30 -21 -21 21 21 {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve}  } 
+ { {curve K x38 1} "track 3" {bl.output.x} {bl.output.y} {curve} {curve} 1 1 1 {curve} 1 0 -30 -30 30 30 -21 -21 21 21 {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve}  } 
+ { {curve K x38 1} "track 4" {br.output.x} {br.output.y} {curve} {curve} 1 1 1 {curve} 1 0 -30 -30 30 30 -21 -21 21 21 {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve} {curve}  } 
+} 
+}
+
+cornerPinOptions "Transform (match-move)"
+transform match-move
+translate {{curve x583 0} {curve x583 0}}
+rotate {{curve x583 0}}
+scale {{curve x583 1}}
+center {{curve x583 0} {curve x583 0}}
+selected_tracks 0
+name _tracker_
+tile_color 0x444444ff
+label "\[value transform]"
+xpos 392
+ypos -209
+}
+push $N10322530
+push $N10326e80
+Reconcile3D {
+inputs 2
+point {10 10 {dist_amnt}}
+calc_output true
+name tr
+xpos 747
+ypos -122
+}
+Axis2 {
+inputs 0
+translate {{parent.input1.translate} {parent.input1.translate} {parent.input1.translate}}
+rotate {{parent.input1.rotate} {parent.input1.rotate} {parent.input1.rotate}}
+name _custom_
+tile_color 0xbbbbbbff
+xpos 626
+ypos -137
+}
+Axis2 {
+name _axis_
+tile_color 0xccccccff
+xpos 626
+ypos -221
+addUserKnob {20 data}
+addUserKnob {3 f_frame l "frame range"}
+addUserKnob {3 l_frame l "" -STARTLINE}
+l_frame 575
+}
+Axis2 {
+inputs 0
+translate {{trans(t*freq_amnt)} {trans(t*freq_amnt)} {trans(t*freq_amnt)}}
+rotate {{rot(t*freq_amnt)} {rot(t*freq_amnt)} {rot(t*freq_amnt)}}
+name _freq_
+tile_color 0x666666ff
+xpos 325
+ypos -218
+addUserKnob {20 data l matrix2vector}
+addUserKnob {13 trans}
+trans {{parent._axis_.world_matrix.3} {parent._axis_.world_matrix.7} {parent._axis_.world_matrix.11}}
+addUserKnob {13 rot}
+rot {{degrees(parent._axis_.world_matrix.9)} {degrees(parent._axis_.world_matrix.2)} {degrees(parent._axis_.world_matrix.4)}}
+}
+Input {
+inputs 0
+name axis
+number 1
+}
+end_group
